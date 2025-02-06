@@ -32,13 +32,15 @@ def send_verification():
         send_verification_email(email)
         return jsonify({"message": "Verification code sent"}), 200
     except Exception as e:
-        return jsonify({"message": str(e)}), 500
+        print(f"Send verification error: {str(e)}")  # 开发时查看具体错误
+        return jsonify({"message": "Failed to send verification code"}), 500
 
 @auth_bp.route('/register', methods=['POST'])
 def register():
     """用户注册"""
     try:
         data = request.get_json()
+        print("Received registration data:", data)  # 添加调试日志
         
         # 验证必要字段
         required_fields = ['username', 'email', 'password', 'role', 'name', 'verification_code']
@@ -57,33 +59,41 @@ def register():
         if not verify_email_code(data['email'], data['verification_code']):
             return jsonify({"message": "Invalid or expired verification code"}), 400
             
-        # 创建用户
-        user = User(
-            username=data['username'],
-            email=data['email'],
-            role=data['role'],
-            name=data['name'],
-            contact=data.get('contact'),
-            province=data.get('province'),
-            is_active=True
-        )
-        user.set_password(data['password'])
-        
-        db.session.add(user)
-        
-        # 如果是学生角色，创建学生记录
-        if data['role'] == 'student':
-            student = Student(
-                user_id=user.id,
-                gender=data.get('gender')
+        try:
+            # 创建用户
+            user = User(
+                username=data['username'],
+                email=data['email'],
+                role=data['role'],
+                name=data['name'],
+                contact=data.get('contact'),
+                province=data.get('province'),
+                is_active=True  # 确保设置为 True
             )
-            db.session.add(student)
+            user.set_password(data['password'])
             
-        db.session.commit()
-        
-        return jsonify({"message": "User registered successfully"}), 201
+            db.session.add(user)
+            db.session.flush()  # 获取用户ID
+            
+            # 如果是学生角色，创建学生记录
+            if data['role'] == 'student':
+                student = Student(
+                    user_id=user.id,
+                    gender=data.get('gender')
+                )
+                db.session.add(student)
+            
+            db.session.commit()
+            print("User registered successfully:", user.id)  # 添加调试日志
+            return jsonify({"message": "Registration successful"}), 201
+            
+        except Exception as e:
+            db.session.rollback()
+            print("Database error:", str(e))  # 添加调试日志
+            return jsonify({"message": "Database error occurred"}), 500
+            
     except Exception as e:
-        db.session.rollback()
+        print("Registration error:", str(e))  # 添加调试日志
         return jsonify({"message": str(e)}), 500
 
 @auth_bp.route('/login', methods=['POST'])

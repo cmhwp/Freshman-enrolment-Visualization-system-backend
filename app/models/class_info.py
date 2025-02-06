@@ -8,5 +8,5 @@ class ClassInfo(db.Model):
     major = db.Column(db.String(100), nullable=False)
     year = db.Column(db.Integer, nullable=False)
     
-    # 反向引用
-    students = db.relationship('User', backref='class_info', lazy=True) 
+    # 反向引用由 User 模型定义，这里不需要定义
+    # students = db.relationship('User', backref='class_info', lazy=True) 

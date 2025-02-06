@@ -5,7 +5,7 @@ class Score(db.Model):
     __tablename__ = 'scores'
     
     id = db.Column(db.Integer, primary_key=True)
-    student_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    student_id = db.Column(db.Integer, db.ForeignKey('students.id', ondelete='CASCADE'), nullable=False)
     year = db.Column(db.Integer, nullable=False)
     total_score = db.Column(db.Float, nullable=False)
     chinese = db.Column(db.Float)

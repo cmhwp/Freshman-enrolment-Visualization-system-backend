@@ -4,7 +4,7 @@ from datetime import timedelta
 class Config:
     # 基础配置
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'your-secret-key'
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///app.db'
+    SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://root:123456@localhost/freshman_db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # JWT配置
@@ -17,11 +17,11 @@ class Config:
     MAIL_PORT = 465
     MAIL_USE_TLS = False
     MAIL_USE_SSL = True
-    MAIL_USERNAME = os.environ.get('cmh22408@163.com')
-    MAIL_PASSWORD = os.environ.get('QDTXLMQLCARYHZYS')
+    MAIL_USERNAME = 'cmh22408@163.com'
+    MAIL_PASSWORD = 'QDTXLMQLCARYHZYS'
     MAIL_DEFAULT_SENDER = 'cmh22408@163.com'
     
     # Redis配置
     REDIS_HOST = os.environ.get('REDIS_HOST') or 'localhost'
     REDIS_PORT = int(os.environ.get('REDIS_PORT') or 6379)
-    REDIS_PASSWORD = os.environ.get('REDIS_PASSWORD') 
+    REDIS_PASSWORD = None  # 如果 Redis 没有设置密码，则为 None
