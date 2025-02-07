@@ -6,8 +6,6 @@ app = create_app()
 # 创建所有数据库表
 def init_db():
     with app.app_context():
-        # 删除所有表（如果存在）
-        db.drop_all()
         # 创建所有表
         db.create_all()
         

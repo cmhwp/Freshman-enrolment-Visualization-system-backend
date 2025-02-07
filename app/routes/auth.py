@@ -9,6 +9,7 @@ from flask_jwt_extended import (
     get_jwt_identity,
     jwt_required
 )
+from werkzeug.security import generate_password_hash
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -148,4 +149,79 @@ def refresh():
             "access_token": access_token
         }), 200
     except Exception as e:
-        return jsonify({"message": str(e)}), 500 
+        return jsonify({"message": str(e)}), 500
+
+@auth_bp.route('/send-reset-code', methods=['POST'])
+def send_reset_code():
+    """发送重置密码的验证码"""
+    try:
+        data = request.get_json()
+        email = data.get('email')
+        
+        if not email:
+            return jsonify({"success": False, "message": "邮箱不能为空"}), 400
+            
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            return jsonify({"success": False, "message": "该邮箱未注册"}), 404
+            
+        # 发送验证码
+        send_verification_email(email)
+        return jsonify({
+            "success": True, 
+            "message": "重置密码验证码已发送到您的邮箱"
+        }), 200
+        
+    except Exception as e:
+        print(f"Send reset code error: {str(e)}")
+        return jsonify({
+            "success": False,
+            "message": "发送验证码失败，请稍后重试"
+        }), 500
+
+@auth_bp.route('/reset-password', methods=['POST'])
+def reset_password():
+    """重置密码"""
+    try:
+        data = request.get_json()
+        email = data.get('email')
+        verification_code = data.get('verification_code')
+        new_password = data.get('new_password')
+        
+        if not all([email, verification_code, new_password]):
+            return jsonify({
+                "success": False,
+                "message": "请填写完整信息"
+            }), 400
+            
+        # 验证邮箱是否存在
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            return jsonify({
+                "success": False,
+                "message": "该邮箱未注册"
+            }), 404
+            
+        # 验证验证码
+        if not verify_email_code(email, verification_code):
+            return jsonify({
+                "success": False,
+                "message": "验证码错误或已过期"
+            }), 400
+            
+        # 更新密码
+        user.password_hash = generate_password_hash(new_password)
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": "密码重置成功，请使用新密码登录"
+        }), 200
+        
+    except Exception as e:
+        print(f"Reset password error: {str(e)}")
+        db.session.rollback()
+        return jsonify({
+            "success": False,
+            "message": "重置密码失败，请稍后重试"
+        }), 500 
