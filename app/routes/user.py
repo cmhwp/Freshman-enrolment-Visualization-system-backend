@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import User, Student
+from app.models import User, Student, SystemLog
 from app import db
 from werkzeug.security import check_password_hash
 
@@ -17,26 +17,21 @@ def get_profile():
         if not user:
             return jsonify({"message": "User not found"}), 404
             
-        profile = {
-            "id": user.id,
-            "username": user.username,
-            "email": user.email,
-            "name": user.name,
-            "role": user.role,
-            "contact": user.contact,
-            "province": user.province,
-            "class_id": user.class_id
-        }
-        
-        # 如果是学生，添加性别信息
+        user_data = user.to_dict()
         if user.role == 'student' and user.student_profile:
-            profile['gender'] = user.student_profile.gender
+            user_data['student_profile'] = user.student_profile.to_dict()
             
-        return jsonify({"success": True, "data": profile}), 200
+        return jsonify({
+            "success": True,
+            "data": user_data
+        })
         
     except Exception as e:
         print(f"Get profile error: {str(e)}")
-        return jsonify({"message": "Failed to get profile"}), 500
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
 
 @user_bp.route('/profile', methods=['PUT'])
 @jwt_required()
@@ -50,20 +45,36 @@ def update_profile():
             return jsonify({"message": "User not found"}), 404
             
         data = request.get_json()
+        changed_fields = []
         
         # 更新基本信息
-        if 'name' in data:
+        if 'name' in data and data['name'] != user.name:
+            changed_fields.append(f"姓名: {user.name} -> {data['name']}")
             user.name = data['name']
-        if 'contact' in data:
+        if 'contact' in data and data['contact'] != user.contact:
+            changed_fields.append(f"联系方式: {user.contact} -> {data['contact']}")
             user.contact = data['contact']
-        if 'province' in data:
+        if 'province' in data and data['province'] != user.province:
+            changed_fields.append(f"省份: {user.province} -> {data['province']}")
             user.province = data['province']
-            
-        # 如果是学生，更新性别
-        if user.role == 'student' and 'gender' in data and user.student_profile:
-            user.student_profile.gender = data['gender']
+        # 更新性别
+        if 'gender' in data and data['gender'] != user.gender:
+            changed_fields.append(f"性别: {user.gender} -> {data['gender']}")
+            user.gender = data['gender']
             
         db.session.commit()
+        
+        # 记录操作日志
+        if changed_fields:
+            log = SystemLog(
+                user_id=user.id,
+                type='update_profile',
+                content=f'更新个人信息: {", ".join(changed_fields)}',
+                ip_address=request.remote_addr
+            )
+            db.session.add(log)
+            db.session.commit()
+            
         return jsonify({"success": True, "message": "Profile updated successfully"}), 200
         
     except Exception as e:
@@ -91,6 +102,15 @@ def update_password():
             return jsonify({"message": "Current password is incorrect"}), 400
             
         user.set_password(data['new_password'])
+        
+        # 记录密码修改日志
+        log = SystemLog(
+            user_id=user.id,
+            type='update_password',
+            content='修改密码',
+            ip_address=request.remote_addr
+        )
+        db.session.add(log)
         db.session.commit()
         
         return jsonify({"success": True, "message": "Password updated successfully"}), 200

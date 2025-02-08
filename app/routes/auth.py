@@ -10,6 +10,8 @@ from flask_jwt_extended import (
     jwt_required
 )
 from werkzeug.security import generate_password_hash
+from app.models.system_log import SystemLog
+from datetime import datetime
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -67,24 +69,35 @@ def register():
                 email=data['email'],
                 role=data['role'],
                 name=data['name'],
+                gender=data.get('gender'),
                 contact=data.get('contact'),
                 province=data.get('province'),
                 is_active=True  # 确保设置为 True
             )
             user.set_password(data['password'])
             
-            db.session.add(user)
-            db.session.flush()  # 获取用户ID
-            
             # 如果是学生角色，创建学生记录
             if data['role'] == 'student':
                 student = Student(
-                    user_id=user.id,
-                    gender=data.get('gender')
+                    user=user,
+                    student_id=generate_student_id(),  # 生成学号
+                    major='未分配'  # 默认专业
                 )
                 db.session.add(student)
             
+            db.session.add(user)
             db.session.commit()
+            
+            # 记录注册日志
+            log = SystemLog(
+                user_id=user.id,
+                type='register',
+                content=f'新用户注册: {user.username}',
+                ip_address=request.remote_addr
+            )
+            db.session.add(log)
+            db.session.commit()
+            
             print("User registered successfully:", user.id)  # 添加调试日志
             return jsonify({"message": "Registration successful"}), 201
             
@@ -103,28 +116,39 @@ def login():
     try:
         data = request.get_json()
         
-        # 支持用户名或邮箱登录
         user = User.query.filter(
             (User.username == data.get('username')) | 
             (User.email == data.get('username'))
         ).first()
         
         if not user or not user.check_password(data.get('password')):
-            return jsonify({"message": "Invalid username or password"}), 401
+            return jsonify({"message": "用户名或密码错误"}), 401
             
         if not user.is_active:
             return jsonify({"message": "Account is not activated"}), 401
             
         # 生成访问令牌和刷新令牌
-        access_token = create_access_token(
-            identity={'user_id': user.id, 'role': user.role}
+        access_token = create_access_token(identity={
+            'user_id': user.id,
+            'role': user.role
+        })
+        refresh_token = create_refresh_token(identity={
+            'user_id': user.id,
+            'role': user.role
+        })
+        
+        # 记录登录日志
+        log = SystemLog(
+            user_id=user.id,
+            type='login',
+            content=f'用户登录: {user.username}',
+            ip_address=request.remote_addr
         )
-        refresh_token = create_refresh_token(
-            identity={'user_id': user.id, 'role': user.role}
-        )
+        db.session.add(log)
+        db.session.commit()
         
         return jsonify({
-            "message": "Login successful",
+            "message": "登录成功",
             "access_token": access_token,
             "refresh_token": refresh_token,
             "user": {
@@ -224,4 +248,19 @@ def reset_password():
         return jsonify({
             "success": False,
             "message": "重置密码失败，请稍后重试"
-        }), 500 
+        }), 500
+
+def generate_student_id():
+    """生成学号：年份(4位) + 随机数(4位)"""
+    year = datetime.now().year
+    # 查找当前年份最大学号
+    latest_student = Student.query.filter(
+        Student.student_id.like(f'{year}%')
+    ).order_by(Student.student_id.desc()).first()
+    
+    if latest_student:
+        current_num = int(latest_student.student_id[4:]) + 1
+    else:
+        current_num = 1
+        
+    return f'{year}{current_num:04d}' 

@@ -16,5 +16,5 @@ class Score(db.Model):
     biology = db.Column(db.Float)
     province_rank = db.Column(db.Integer)
     major_rank = db.Column(db.Integer)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow) 
+    created_at = db.Column(db.DateTime, default=datetime.now())
+    updated_at = db.Column(db.DateTime, default=datetime.now(), onupdate=datetime.now()) 

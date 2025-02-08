@@ -10,10 +10,11 @@ from app.utils.analysis import (
     get_gender_admission_ratio,
     get_school_ranking
 )
+from app.models.system_log import SystemLog
 
 student_bp = Blueprint('student', __name__)
 
-@student_bp.route('/api/student/scores', methods=['GET'])
+@student_bp.route('/scores', methods=['GET'])
 @student_required
 def get_student_scores():
     """获取学生个人成绩详情"""
@@ -26,6 +27,16 @@ def get_student_scores():
                 'success': False,
                 'message': '未找到成绩数据'
             }), 404
+            
+        # 记录查询日志
+        log = SystemLog(
+            user_id=student_id,
+            type='view_scores',
+            content='查看个人成绩',
+            ip_address=request.remote_addr
+        )
+        db.session.add(log)
+        db.session.commit()
             
         return jsonify({
             'success': True,
@@ -47,7 +58,7 @@ def get_student_scores():
             'message': str(e)
         }), 500
 
-@student_bp.route('/api/student/major-ranking', methods=['GET'])
+@student_bp.route('/major-ranking', methods=['GET'])
 @student_required
 def get_major_ranking():
     """获取专业排名信息"""
@@ -73,7 +84,7 @@ def get_major_ranking():
             'message': str(e)
         }), 500
 
-@student_bp.route('/api/student/score-distribution', methods=['GET'])
+@student_bp.route('/score-distribution', methods=['GET'])
 @student_required
 def get_class_distribution():
     """获取班级分数分布和录取性别比例"""
@@ -103,7 +114,7 @@ def get_class_distribution():
             'message': str(e)
         }), 500
 
-@student_bp.route('/api/student/school-ranking', methods=['GET'])
+@student_bp.route('/school-ranking', methods=['GET'])
 @student_required
 def get_student_school_ranking():
     """获取学生在学校的总体排名"""
