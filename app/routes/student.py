@@ -1,8 +1,8 @@
 from flask import Blueprint, jsonify, request, g
-from app.utils.decorators import student_required
+from app.utils.decorators import student_required, login_required
 from app.models.score import Score
 from app.models.student import Student
-from app import db
+from app.extensions import db
 from app.utils.analysis import (
     calculate_total_score,
     get_major_rankings,
@@ -11,6 +11,8 @@ from app.utils.analysis import (
     get_school_ranking
 )
 from app.models.system_log import SystemLog
+from app.models.user import User
+from datetime import datetime
 
 student_bp = Blueprint('student', __name__)
 
@@ -133,6 +135,62 @@ def get_student_school_ranking():
             }
         })
     except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+@student_bp.route('/report', methods=['POST'])
+@login_required
+def student_report():
+    """学生报到"""
+    try:
+        # 获取当前用户
+        user = User.query.get(g.user_id)
+        if not user or user.role != 'student':
+            return jsonify({
+                'success': False,
+                'message': '只有学生可以报到'
+            }), 403
+            
+        # 获取学生信息
+        student = Student.query.filter_by(user_id=g.user_id).first()
+        if not student:
+            return jsonify({
+                'success': False,
+                'message': '学生信息不存在'
+            }), 404
+            
+        # 检查报到状态
+        if student.status == 'reported':
+            return jsonify({
+                'success': False,
+                'message': '您已经完成报到'
+            }), 400
+            
+        # 更新报到状态
+        student.status = 'reported'
+        student.report_time = datetime.now()
+        
+        # 记录报到日志
+        log = SystemLog(
+            user_id=g.user_id,
+            type='student_report',
+            content=f'学生 {user.name} 完成报到',
+            ip_address=request.remote_addr
+        )
+        
+        db.session.add(log)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': '报到成功'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Report error: {str(e)}")  # 添加错误日志
         return jsonify({
             'success': False,
             'message': str(e)

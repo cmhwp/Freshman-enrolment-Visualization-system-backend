@@ -1,8 +1,8 @@
+from app.extensions import db
 from flask import Blueprint, jsonify, request, g
 from app.utils.decorators import teacher_required
 from app.models.class_info import ClassInfo
 from app.models.system_log import SystemLog
-from app import db
 
 teacher_bp = Blueprint('teacher', __name__)
 

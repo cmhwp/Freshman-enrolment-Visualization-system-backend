@@ -1,8 +1,11 @@
 from flask import Blueprint, request, jsonify
 from app.models.user import User
 from app.models.student import Student
-from app import db
+from app.models.settings import Settings
+from app.extensions import db
 from app.utils.email import send_verification_email, verify_email_code
+from app.utils.settings import get_settings
+
 from flask_jwt_extended import (
     create_access_token,
     create_refresh_token,
@@ -12,6 +15,7 @@ from flask_jwt_extended import (
 from werkzeug.security import generate_password_hash
 from app.models.system_log import SystemLog
 from datetime import datetime
+from app.extensions import jwt
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -45,18 +49,26 @@ def register():
         data = request.get_json()
         print("Received registration data:", data)  # 添加调试日志
         
-        # 验证必要字段
-        required_fields = ['username', 'email', 'password', 'role', 'name', 'verification_code']
-        for field in required_fields:
-            if field not in data:
-                return jsonify({"message": f"{field} is required"}), 400
+        # 检查是否允许注册
+        settings = get_settings()
+        if not settings.allow_register:
+            return jsonify({"message": "系统当前未开放注册"}), 403
         
-        # 验证用户名和邮箱是否已存在
+        # 验证必需字段
+        required_fields = ['username', 'password', 'email', 'role', 'name']
+        if not all(field in data for field in required_fields):
+            return jsonify({"message": "Missing required fields"}), 400
+        
+        # 验证角色
+        if data['role'] not in ['student', 'teacher']:
+            return jsonify({"message": "Invalid role"}), 400
+        
+        # 检查用户名和邮箱是否已存在
         if User.query.filter_by(username=data['username']).first():
             return jsonify({"message": "Username already exists"}), 400
             
         if User.query.filter_by(email=data['email']).first():
-            return jsonify({"message": "Email already registered"}), 400
+            return jsonify({"message": "Email already exists"}), 400
             
         # 验证邮箱验证码
         if not verify_email_code(data['email'], data['verification_code']):
@@ -72,7 +84,7 @@ def register():
                 gender=data.get('gender'),
                 contact=data.get('contact'),
                 province=data.get('province'),
-                is_active=True  # 确保设置为 True
+                is_active=not settings.require_email_verification  # 根据设置决定是否需要验证
             )
             user.set_password(data['password'])
             
@@ -81,7 +93,8 @@ def register():
                 student = Student(
                     user=user,
                     student_id=generate_student_id(),  # 生成学号
-                    major='未分配'  # 默认专业
+                    major=settings.majors[0] if settings.majors else '未分配',  # 使用设置中的第一个专业
+                    status=settings.default_student_status  # 使用默认学籍状态
                 )
                 db.session.add(student)
             
@@ -115,12 +128,12 @@ def login():
     """用户登录"""
     try:
         data = request.get_json()
-        
         user = User.query.filter(
             (User.username == data.get('username')) | 
             (User.email == data.get('username'))
         ).first()
         
+
         if not user or not user.check_password(data.get('password')):
             return jsonify({"message": "用户名或密码错误"}), 401
             
@@ -236,11 +249,20 @@ def reset_password():
         # 更新密码
         user.password_hash = generate_password_hash(new_password)
         db.session.commit()
-        
+        # 记录重置密码日志
+        log = SystemLog(
+            user_id=user.id,
+            type='reset_password',
+            content=f'重置密码: {user.username}',
+            ip_address=request.remote_addr
+        )
+        db.session.add(log)
+        db.session.commit()
         return jsonify({
             "success": True,
             "message": "密码重置成功，请使用新密码登录"
         }), 200
+
         
     except Exception as e:
         print(f"Reset password error: {str(e)}")
@@ -252,8 +274,10 @@ def reset_password():
 
 def generate_student_id():
     """生成学号：年份(4位) + 随机数(4位)"""
-    year = datetime.now().year
+    settings = Settings.query.first()
+    year = settings.student_id_prefix
     # 查找当前年份最大学号
+
     latest_student = Student.query.filter(
         Student.student_id.like(f'{year}%')
     ).order_by(Student.student_id.desc()).first()

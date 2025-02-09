@@ -1,29 +1,34 @@
-from app import db
+from app.extensions import db
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 class User(db.Model):
     __tablename__ = 'users'
     
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(64), unique=True, nullable=False)
+    username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(255))
     role = db.Column(db.String(20), nullable=False)  # student, teacher, admin
-    name = db.Column(db.String(64))
+    name = db.Column(db.String(80))
     gender = db.Column(db.String(1))  # 'M' 或 'F'
-    contact = db.Column(db.String(64))
-    class_id = db.Column(db.Integer, db.ForeignKey('classes.id', ondelete='SET NULL'), nullable=True)
-    province = db.Column(db.String(64))
+    contact = db.Column(db.String(120))
+    class_id = db.Column(db.Integer, db.ForeignKey('class_info.id', ondelete='SET NULL'), nullable=True)
+    province = db.Column(db.String(50))
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.now())
     updated_at = db.Column(db.DateTime, default=datetime.now(), onupdate=datetime.now())
     
-    # 修改关系定义，明确指定外键
+    # 简化关系定义
     class_info = db.relationship(
         'ClassInfo',
         foreign_keys=[class_id],
-        backref=db.backref('users', lazy='dynamic'),
-        lazy='joined'
+        back_populates='class_members'
+    )
+    
+    managed_classes = db.relationship(
+        'ClassInfo',
+        foreign_keys='ClassInfo.teacher_id',
+        back_populates='teacher'
     )
     
     def set_password(self, password):
