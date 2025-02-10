@@ -211,4 +211,98 @@ def create_student_template():
         return template_path
         
     except Exception as e:
-        raise Exception(f"创建模板失败: {str(e)}") 
+        raise Exception(f"创建模板失败: {str(e)}")
+
+def create_student_score_template():
+    """创建学生成绩导入模板"""
+    try:
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "成绩信息"
+
+        # 设置列宽
+        ws.column_dimensions['A'].width = 15  # 学号
+        ws.column_dimensions['B'].width = 15  # 姓名
+        ws.column_dimensions['C'].width = 10  # 年份
+        ws.column_dimensions['D'].width = 10  # 总分
+        ws.column_dimensions['E'].width = 10  # 语文
+        ws.column_dimensions['F'].width = 10  # 数学
+        ws.column_dimensions['G'].width = 10  # 英语
+        ws.column_dimensions['H'].width = 10  # 物理
+        ws.column_dimensions['I'].width = 10  # 化学
+        ws.column_dimensions['J'].width = 10  # 生物
+
+        # 设置表头样式
+        header_fill = PatternFill(start_color='FFD9D9D9', end_color='FFD9D9D9', fill_type='solid')
+        header_font = Font(bold=True)
+        headers = [
+            ('A1', '学号*'),
+            ('B1', '姓名*'),
+            ('C1', '年份*'),
+            ('D1', '总分*'),
+            ('E1', '语文'),
+            ('F1', '数学'),
+            ('G1', '英语'),
+            ('H1', '物理'),
+            ('I1', '化学'),
+            ('J1', '生物')
+        ]
+
+        for cell, value in headers:
+            ws[cell] = value
+            ws[cell].fill = header_fill
+            ws[cell].font = header_font
+            ws[cell].alignment = Alignment(horizontal='center')
+
+        # 添加示例数据
+        example_data = [
+            '2023001',
+            '张三',
+            '2023',
+            '650',
+            '120',
+            '140',
+            '130',
+            '90',
+            '85',
+            '85'
+        ]
+        
+        for col, value in enumerate(example_data, start=1):
+            cell = ws.cell(row=2, column=col, value=value)
+            cell.alignment = Alignment(horizontal='center')
+
+        # 添加说明sheet
+        ws_help = wb.create_sheet(title="填写说明")
+        ws_help.column_dimensions['A'].width = 20
+        ws_help.column_dimensions['B'].width = 60
+
+        help_content = [
+            ("必填字段", "学号、姓名、年份、总分"),
+            ("学号要求", "必须是已存在的学生学号"),
+            ("年份格式", "四位数字年份，如：2023"),
+            ("分数要求", "总分：0-750\n语文：0-150\n数学：0-150\n英语：0-150\n物理：0-100\n化学：0-100\n生物：0-100"),
+            ("注意事项", "1. 请勿修改表头\n2. 示例数据仅供参考，可以删除\n3. 批量导入时请确保数据的准确性")
+        ]
+
+        for row, (title, content) in enumerate(help_content, start=1):
+            ws_help.cell(row=row, column=1, value=title).font = Font(bold=True)
+            ws_help.cell(row=row, column=2, value=content)
+            if '\n' in content:
+                ws_help.row_dimensions[row].height = 45
+
+        # 保存模板
+        template_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static', 'templates')
+        if not os.path.exists(template_dir):
+            os.makedirs(template_dir)
+        
+        template_path = os.path.join(template_dir, 'student_score_template.xlsx')
+        if os.path.exists(template_path):
+            os.remove(template_path)
+        
+        wb.save(template_path)
+        wb.close()
+        return template_path
+        
+    except Exception as e:
+        raise Exception(f"创建成绩导入模板失败: {str(e)}")

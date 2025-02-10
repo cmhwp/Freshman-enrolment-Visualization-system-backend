@@ -8,6 +8,7 @@ class Student(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     student_id = db.Column(db.String(20), unique=True, nullable=False)
+    class_id = db.Column(db.Integer, db.ForeignKey('class_info.id'))
     major = db.Column(db.String(50))
     admission_year = db.Column(db.Integer)
     admission_date = db.Column(db.DateTime)
@@ -31,10 +32,12 @@ class Student(db.Model):
             'userId': self.user_id,
             'studentId': self.student_id,
             'major': self.major,
+            'classId': self.class_id,
             'admissionYear': self.admission_year,
             'admissionDate': self.admission_date.isoformat() if self.admission_date else None,
             'graduationDate': self.graduation_date.isoformat() if self.graduation_date else None,
             'status': self.status,
+
             'reportTime': self.report_time.isoformat() if self.report_time else None,
             'createdAt': self.created_at.isoformat() if self.created_at else None,
             'updatedAt': self.updated_at.isoformat() if self.updated_at else None

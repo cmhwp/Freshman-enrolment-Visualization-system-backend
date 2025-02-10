@@ -1,5 +1,5 @@
 from app import create_app
-from app.models import User, Settings, Student, ClassInfo, SystemLog, DormitoryBuilding, DormitoryRoom, DormitoryAssignment
+from app.models import User, Settings, Student, ClassInfo, SystemLog, DormitoryBuilding, DormitoryRoom, DormitoryAssignment, Score
 from app import db
 from datetime import datetime, timedelta
 import random
@@ -81,6 +81,7 @@ def init_db():
                         role='student',
                         gender=gender,
                         province=random.choice(provinces),
+                        contact=f'138{random.randint(10000000, 99999999)}',
                         is_active=True,
                         password_hash=generate_password_hash('123456')
                     )
@@ -139,6 +140,183 @@ def init_db():
                 db.session.rollback()
                 print(f'Error creating initial data: {str(e)}')
 
+def create_score_data():
+    """创建成绩测试数据"""
+    with app.app_context():
+        try:
+            # 为现有的学生添加成绩数据
+            students = Student.query.all()
+            for student in students:
+                # 检查是否已有成绩
+                existing_score = Score.query.filter_by(student_id=student.id).first()
+                if existing_score:
+                    continue
+                    
+                # 创建随机成绩
+                score = Score(
+                    student_id=student.id,
+                    year=2024,
+                    total_score=0,  # 稍后计算
+                    chinese=random.randint(90, 150),
+                    math=random.randint(90, 150),
+                    english=random.randint(90, 150),
+                    physics=random.randint(60, 100),
+                    chemistry=random.randint(60, 100),
+                    biology=random.randint(60, 100),
+                    created_at=datetime.now()
+                )
+                
+                # 计算总分
+                score.total_score = (
+                    score.chinese + 
+                    score.math + 
+                    score.english + 
+                    score.physics + 
+                    score.chemistry + 
+                    score.biology
+                )
+                
+                db.session.add(score)
+            
+            db.session.commit()
+            
+            # 计算并更新排名
+            update_rankings()
+            
+            print("成绩测试数据创建完成!")
+            
+        except Exception as e:
+            db.session.rollback()
+            print(f'Error creating score data: {str(e)}')
+
+def update_rankings():
+    """更新所有学生的排名"""
+    try:
+        # 更新省排名
+        scores = Score.query.order_by(Score.total_score.desc()).all()
+        for rank, score in enumerate(scores, 1):
+            score.province_rank = rank
+        
+        # 更新专业排名
+        students = Student.query.all()
+        majors = set(student.major for student in students)
+        
+        for major in majors:
+            major_scores = Score.query.join(Student).filter(
+                Student.major == major
+            ).order_by(Score.total_score.desc()).all()
+            
+            for rank, score in enumerate(major_scores, 1):
+                score.major_rank = rank
+        
+        db.session.commit()
+        print("排名更新完成!")
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f'Error updating rankings: {str(e)}')
+
+def create_class_data():
+    """创建班级测试数据"""
+    with app.app_context():
+        try:
+            # 创建一些教师账号
+            teachers_data = [
+                {
+                    'username': 'teacher1',
+                    'email': 'teacher1@example.com',
+                    'name': '张老师',
+                    'department': '计算机学院'
+                },
+                {
+                    'username': 'teacher2',
+                    'email': 'teacher2@example.com',
+                    'name': '李老师',
+                    'department': '软件学院'
+                },
+                {
+                    'username': 'teacher3',
+                    'email': 'teacher3@example.com',
+                    'name': '王老师',
+                    'department': '人工智能学院'
+                }
+            ]
+            
+            teacher_ids = []
+            for teacher_data in teachers_data:
+                existing_teacher = User.query.filter_by(username=teacher_data['username']).first()
+                if not existing_teacher:
+                    teacher = User(
+                        username=teacher_data['username'],
+                        email=teacher_data['email'],
+                        role='teacher',
+                        name=teacher_data['name'],
+                        gender='M',
+                        contact=f'138{random.randint(10000000, 99999999)}'
+                    )
+                    teacher.set_password('123456')
+                    db.session.add(teacher)
+                    db.session.commit()
+                    teacher_ids.append(teacher.id)
+                else:
+                    teacher_ids.append(existing_teacher.id)
+
+            # 创建班级
+            classes_data = [
+                {
+                    'class_name': '2024计算机1班',
+                    'major': '计算机科学与技术',
+                    'department': '计算机学院',
+                    'teacher_id': teacher_ids[0]
+                },
+                {
+                    'class_name': '2024软件1班',
+                    'major': '软件工程',
+                    'department': '软件学院',
+                    'teacher_id': teacher_ids[1]
+                },
+                {
+                    'class_name': '2024人工智能1班',
+                    'major': '人工智能',
+                    'department': '人工智能学院',
+                    'teacher_id': teacher_ids[2]
+                }
+            ]
+
+            for class_data in classes_data:
+                existing_class = ClassInfo.query.filter_by(class_name=class_data['class_name']).first()
+                if not existing_class:
+                    class_info = ClassInfo(
+                        class_name=class_data['class_name'],
+                        major=class_data['major'],
+                        department=class_data['department'],
+                        year=2024,
+                        capacity=30,
+                        teacher_id=class_data['teacher_id']
+                    )
+                    db.session.add(class_info)
+            
+            db.session.commit()
+            
+            # 将现有学生随机分配到班级
+            classes = ClassInfo.query.all()
+            students = Student.query.filter_by(class_id=None).all()
+            
+            for student in students:
+                random_class = random.choice(classes)
+                student.class_id = random_class.id
+                student.major = random_class.major  # 更新学生专业以匹配班级
+                random_class.assigned_students += 1  # 更新已分配学生数量
+            
+            db.session.commit()
+            print("班级测试数据创建完成!")
+            
+        except Exception as e:
+            db.session.rollback()
+            print(f'Error creating class data: {str(e)}')
+
 if __name__ == '__main__':
     init_db()  # 初始化数据库和默认数据
+    create_class_data()  # 创建班级测试数据
+    create_score_data()  # 创建成绩测试数据
     app.run(debug=True) 

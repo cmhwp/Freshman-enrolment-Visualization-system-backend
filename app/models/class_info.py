@@ -10,6 +10,7 @@ class ClassInfo(db.Model):
     department = db.Column(db.String(64))  # 院系
     year = db.Column(db.Integer)  # 年级
     capacity = db.Column(db.Integer)  # 班级容量
+    assigned_students = db.Column(db.Integer, default=0)  # 已分配学生数量
     teacher_id = db.Column(db.Integer, db.ForeignKey('users.id'))  # 班主任ID
     
     created_at = db.Column(db.DateTime, default=datetime.now())
@@ -39,18 +40,24 @@ class ClassInfo(db.Model):
         overlaps="students,student_class"  # 声明重叠的关系
     )
     
-    def to_dict(self):
-        return {
+    def to_dict(self, with_students=False):
+        data = {
             'id': self.id,
             'class_name': self.class_name,
-            'major': self.major,
             'department': self.department,
+            'major': self.major,
             'year': self.year,
             'capacity': self.capacity,
             'teacher_id': self.teacher_id,
+            'assigned_students': self.assigned_students,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
+        
+        if with_students:
+            data['students'] = [student.to_dict() for student in self.students]
+        
+        return data
 
     # 反向引用由 User 模型定义，这里不需要定义
     # students = db.relationship('User', backref='class_info', lazy=True) 

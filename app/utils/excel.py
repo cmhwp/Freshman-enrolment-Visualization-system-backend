@@ -164,3 +164,5 @@ def process_student_excel(file):
     except Exception as e:
         db.session.rollback()
         raise e 
+def process_student_score_excel(file):
+    """处理学生成绩Excel文件"""
