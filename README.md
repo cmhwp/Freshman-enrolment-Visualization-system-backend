@@ -79,7 +79,7 @@ flask run
 
 ## 开发团队
 
-- 后端开发: [Your Name]
+- 后端开发: [我不是干脆面]
 - 前端开发: [Front-end Developer]
 
 ## License
