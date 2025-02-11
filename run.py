@@ -1,5 +1,5 @@
 from app import create_app
-from app.models import User, Settings, Student, ClassInfo, SystemLog, DormitoryBuilding, DormitoryRoom, DormitoryAssignment, Score
+from app.models import User, Settings, Student, ClassInfo, SystemLog, DormitoryBuilding, DormitoryRoom, DormitoryAssignment, Score, Teacher
 from app import db
 from datetime import datetime, timedelta
 import random
@@ -68,7 +68,7 @@ def init_db():
                             db.session.add(dorm_room)
                 
                 # 创建测试学生数据
-                provinces = ['beijing', 'shanghai', 'guangdong', 'jiangsu', 'zhejiang', 'sichuan', 'hubei', 'shanxi']
+                provinces = ['北京市', '上海市', '广东省', '江苏省', '浙江省', '四川省', '湖北省', '山西省']
                 statuses = ['pending', 'reported', 'unreported']
                 current_year = datetime.now().year
 
@@ -246,7 +246,8 @@ def create_class_data():
             for teacher_data in teachers_data:
                 existing_teacher = User.query.filter_by(username=teacher_data['username']).first()
                 if not existing_teacher:
-                    teacher = User(
+                    # 创建 User 记录
+                    teacher_user = User(
                         username=teacher_data['username'],
                         email=teacher_data['email'],
                         role='teacher',
@@ -254,11 +255,29 @@ def create_class_data():
                         gender='M',
                         contact=f'138{random.randint(10000000, 99999999)}'
                     )
-                    teacher.set_password('123456')
+                    teacher_user.set_password('123456')
+                    db.session.add(teacher_user)
+                    db.session.flush()  # 获取 user.id
+                    
+                    # 创建 Teacher 记录
+                    teacher = Teacher(
+                        user_id=teacher_user.id,
+                        title='教授',  # 职称
+                        research_area='计算机科学'  # 研究方向
+                    )
                     db.session.add(teacher)
-                    db.session.commit()
-                    teacher_ids.append(teacher.id)
+                    db.session.flush()
+                    teacher_ids.append(teacher_user.id)
                 else:
+                    # 检查是否已有 Teacher 记录
+                    teacher = Teacher.query.filter_by(user_id=existing_teacher.id).first()
+                    if not teacher:
+                        teacher = Teacher(
+                            user_id=existing_teacher.id,
+                            title='教授',
+                            research_area='计算机科学'
+                        )
+                        db.session.add(teacher)
                     teacher_ids.append(existing_teacher.id)
 
             # 创建班级
@@ -291,7 +310,7 @@ def create_class_data():
                         major=class_data['major'],
                         department=class_data['department'],
                         year=2024,
-                        capacity=30,
+                        capacity=40,
                         teacher_id=class_data['teacher_id']
                     )
                     db.session.add(class_info)
@@ -316,7 +335,14 @@ def create_class_data():
             print(f'Error creating class data: {str(e)}')
 
 if __name__ == '__main__':
-    init_db()  # 初始化数据库和默认数据
-    create_class_data()  # 创建班级测试数据
-    create_score_data()  # 创建成绩测试数据
+    # #检查是否已存在管理员账号
+    with app.app_context():
+        admin = User.query.filter_by(role='admin').first()
+        if not admin:
+            init_db()  # 初始化数据库和默认数据
+            create_class_data()  # 创建班级测试数据
+            create_score_data()  # 创建成绩测试数据
+    # init_db()  # 初始化数据库和默认数据
+    # create_class_data()  # 创建班级测试数据
+    # create_score_data()  # 创建成绩测试数据
     app.run(debug=True) 

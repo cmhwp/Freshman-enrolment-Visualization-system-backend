@@ -10,7 +10,7 @@ from flask_jwt_extended import get_jwt_identity
 from app.models.student import Student
 from app.models.teacher import Teacher
 from app.models.dormitory import DormitoryRoom, DormitoryAssignment
-
+from app.models.todo import Todo
 stats_bp = Blueprint('stats', __name__)
 
 
@@ -28,7 +28,6 @@ def get_overview():
         reported_count = Student.query.filter_by(status='reported').count()
         unreported_count = Student.query.filter_by(status='unreported').count()
         pending_count = Student.query.filter_by(status='pending').count()
-
 
         # 获取教师总数
         total_teachers = Teacher.query.count()
@@ -118,8 +117,20 @@ def get_overview():
                 print(stats['student_profile'])
         elif user.role == 'teacher':
             stats['managedClasses'] = ClassInfo.query.filter_by(teacher_id=user.id).count()
-
-            stats['todoCount'] = 0  # 可以添加待办事项统计
+            # 获取该老师所管辖学生数量
+            stats['managedStudents'] = Student.query\
+                .join(ClassInfo, Student.class_id == ClassInfo.id)\
+                .filter(ClassInfo.teacher_id == user.id)\
+                .count()
+            # 获取该老师待处理的待办事项数量
+            teacher = Teacher.query.filter_by(user_id=user.id).first()
+            if teacher:
+                stats['todoCount'] = Todo.query.filter_by(
+                    teacher_id=teacher.id,
+                    status='pending'
+                ).count()
+            else:
+                stats['todoCount'] = 0
         return jsonify({
             'success': True,
             'data': {

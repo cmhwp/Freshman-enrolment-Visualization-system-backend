@@ -226,7 +226,7 @@ def get_system_logs():
             'message': str(e)
         }), 500
 
-# 在现有代码后添加教师管理相关路由
+
 
 @admin_bp.route('/teachers', methods=['GET'])
 @admin_required
@@ -780,7 +780,14 @@ def assign_dormitories():
             if student:
                 student.dormitory_building = building
                 student.dormitory_room = room
-                
+        # 记录操作日志
+        log = SystemLog(
+            user_id=g.user_id,
+            type='assign_dormitories',
+            content=f'批量分配宿舍: {building} {room}',
+            ip_address=request.remote_addr
+        )
+        db.session.add(log)
         db.session.commit()
         
         return jsonify({

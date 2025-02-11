@@ -1,90 +1,87 @@
-# Student Management System Backend
+# 新生入学可视化系统
 
-Flask backend for the student management system.
+一个基于 Flask 的新生入学管理系统，提供新生报到、班级管理、成绩管理等功能。
 
-## Features
+## 功能特点
 
-- RESTful API
-- JWT Authentication
-- Role-based access control
-- Student score management
-- Score analysis
+- 多角色权限管理（管理员、教师、学生）
+- 新生报到管理
+- 班级管理
+- 学生成绩管理
+- 宿舍分配
+- 待办事项管理
+- 数据可视化分析
+- Excel导入导出
 
-## Tech Stack
+## 技术栈
 
-- Python
-- Flask
-- SQLAlchemy
-- JWT
-- MySQL
-- Redis
+- Backend: Flask + SQLAlchemy + JWT
+- Database: MySQL
+- Cache: Redis
+- Task Queue: APScheduler
 
-## Project Setup
+## 安装部署
 
+1. 克隆项目
 ```bash
-# Create virtual environment
+git clone https://github.com/yourusername/student-enrollment-system.git
+cd student-enrollment-system
+```
+
+2. 创建虚拟环境
+```bash
 python -m venv venv
+source venv/bin/activate  # Linux/Mac
+# 或
+venv\Scripts\activate  # Windows
+```
 
-# Activate virtual environment
-# On Windows:
-venv\Scripts\activate
-# On Unix or MacOS:
-source venv/bin/activate
-
-# Install dependencies
+3. 安装依赖
+```bash
 pip install -r requirements.txt
+```
 
-# Copy environment file
+4. 配置环境变量
+```bash
 cp .env.example .env
+# 编辑 .env 文件，配置数据库等信息
+```
 
-# Initialize database
+5. 初始化数据库
+```bash
+flask db upgrade
 python run.py
 ```
 
-## Environment Variables
-
-Copy `.env.example` to `.env` and adjust the values:
-
-```
-FLASK_APP=run.py
-FLASK_ENV=development
-DATABASE_URL=mysql+pymysql://username:password@localhost/dbname
-SECRET_KEY=your-secret-key
-JWT_SECRET_KEY=your-jwt-secret-key
+6. 运行服务
+```bash
+flask run
 ```
 
-## API Documentation
+## 默认账号
 
-### Authentication
-- POST /api/auth/register - Register new user
-- POST /api/auth/login - User login
-- POST /api/auth/refresh - Refresh access token
+- 管理员：admin/admin123
+- 教师：teacher1/123456
+- 学生：自行注册
 
-### Student
-- GET /api/student/scores - Get student scores
-- GET /api/student/major-ranking - Get major ranking
-- GET /api/student/score-distribution - Get score distribution
-- GET /api/student/school-ranking - Get school ranking
+## API 文档
 
-## Project Structure
+主要API路由：
 
-```
-app/
-├── __init__.py
-├── config.py
-├── models/
-├── routes/
-└── utils/
-```
+- 认证相关: `/api/auth/*`
+- 学生相关: `/api/student/*`
+- 教师相关: `/api/teacher/*`
+- 管理员相关: `/api/admin/*`
+- 用户相关: `/api/user/*`
+- 统计相关: `/api/stats/*`
+- 宿舍相关: `/api/dormitory/*`
+- 待办相关: `/api/todo/*`
 
-## Contributing
+## 开发团队
 
-1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Open a Pull Request
+- 后端开发: [Your Name]
+- 前端开发: [Front-end Developer]
 
 ## License
 
-This project is licensed under the MIT License 
+MIT 

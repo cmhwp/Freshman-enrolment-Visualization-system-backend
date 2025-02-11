@@ -1,8 +1,15 @@
 import pandas as pd
 import os
 from openpyxl import Workbook
-from openpyxl.styles import PatternFill, Font, Alignment
+from openpyxl.styles import PatternFill, Font, Alignment, Protection
+from openpyxl.worksheet.datavalidation import DataValidation
 from app.utils.settings import get_settings
+from datetime import datetime
+from app.models.student import Student
+from app.models.user import User
+from app.models.class_info import ClassInfo
+from app.models.score import Score
+from app.extensions import db
 
 def create_teacher_template():
     """创建教师导入模板"""
@@ -213,9 +220,23 @@ def create_student_template():
     except Exception as e:
         raise Exception(f"创建模板失败: {str(e)}")
 
-def create_student_score_template():
+def create_student_score_template(class_id: int, teacher_id: int):
     """创建学生成绩导入模板"""
     try:
+        # 获取班级中没有成绩记录的学生
+        students_without_scores = db.session.query(Student, User)\
+            .join(User, Student.user_id == User.id)\
+            .join(ClassInfo, Student.class_id == ClassInfo.id)\
+            .outerjoin(Score, Score.student_id == Student.id)\
+            .filter(
+                Student.class_id == class_id,
+                ClassInfo.teacher_id == teacher_id,
+                Score.id.is_(None)
+            ).all()
+
+        if not students_without_scores:
+            raise ValueError("该班级所有学生都已有成绩记录")
+        
         wb = Workbook()
         ws = wb.active
         ws.title = "成绩信息"
@@ -224,28 +245,26 @@ def create_student_score_template():
         ws.column_dimensions['A'].width = 15  # 学号
         ws.column_dimensions['B'].width = 15  # 姓名
         ws.column_dimensions['C'].width = 10  # 年份
-        ws.column_dimensions['D'].width = 10  # 总分
-        ws.column_dimensions['E'].width = 10  # 语文
-        ws.column_dimensions['F'].width = 10  # 数学
-        ws.column_dimensions['G'].width = 10  # 英语
-        ws.column_dimensions['H'].width = 10  # 物理
-        ws.column_dimensions['I'].width = 10  # 化学
-        ws.column_dimensions['J'].width = 10  # 生物
+        ws.column_dimensions['D'].width = 10  # 语文
+        ws.column_dimensions['E'].width = 10  # 数学
+        ws.column_dimensions['F'].width = 10  # 英语
+        ws.column_dimensions['G'].width = 10  # 物理
+        ws.column_dimensions['H'].width = 10  # 化学
+        ws.column_dimensions['I'].width = 10  # 生物
 
         # 设置表头样式
         header_fill = PatternFill(start_color='FFD9D9D9', end_color='FFD9D9D9', fill_type='solid')
         header_font = Font(bold=True)
         headers = [
-            ('A1', '学号*'),
-            ('B1', '姓名*'),
-            ('C1', '年份*'),
-            ('D1', '总分*'),
-            ('E1', '语文'),
-            ('F1', '数学'),
-            ('G1', '英语'),
-            ('H1', '物理'),
-            ('I1', '化学'),
-            ('J1', '生物')
+            ('A1', '学号(自动填充)'),
+            ('B1', '姓名(自动填充)'),
+            ('C1', '年份(自动填充)'),
+            ('D1', '语文*'),
+            ('E1', '数学*'),
+            ('F1', '英语*'),
+            ('G1', '物理*'),
+            ('H1', '化学*'),
+            ('I1', '生物*')
         ]
 
         for cell, value in headers:
@@ -254,55 +273,38 @@ def create_student_score_template():
             ws[cell].font = header_font
             ws[cell].alignment = Alignment(horizontal='center')
 
-        # 添加示例数据
-        example_data = [
-            '2023001',
-            '张三',
-            '2023',
-            '650',
-            '120',
-            '140',
-            '130',
-            '90',
-            '85',
-            '85'
-        ]
-        
-        for col, value in enumerate(example_data, start=1):
-            cell = ws.cell(row=2, column=col, value=value)
-            cell.alignment = Alignment(horizontal='center')
+        # 添加学生信息
+        current_year = datetime.now().year
+        for i, (student, user) in enumerate(students_without_scores, start=2):
+            ws[f'A{i}'] = student.student_id
+            ws[f'B{i}'] = user.name
+            ws[f'C{i}'] = current_year
+            
+            # 锁定前三列
+            for col in ['A', 'B', 'C']:
+                ws[f'{col}{i}'].protection = Protection(locked=True)
 
-        # 添加说明sheet
-        ws_help = wb.create_sheet(title="填写说明")
-        ws_help.column_dimensions['A'].width = 20
-        ws_help.column_dimensions['B'].width = 60
-
-        help_content = [
-            ("必填字段", "学号、姓名、年份、总分"),
-            ("学号要求", "必须是已存在的学生学号"),
-            ("年份格式", "四位数字年份，如：2023"),
-            ("分数要求", "总分：0-750\n语文：0-150\n数学：0-150\n英语：0-150\n物理：0-100\n化学：0-100\n生物：0-100"),
-            ("注意事项", "1. 请勿修改表头\n2. 示例数据仅供参考，可以删除\n3. 批量导入时请确保数据的准确性")
-        ]
-
-        for row, (title, content) in enumerate(help_content, start=1):
-            ws_help.cell(row=row, column=1, value=title).font = Font(bold=True)
-            ws_help.cell(row=row, column=2, value=content)
-            if '\n' in content:
-                ws_help.row_dimensions[row].height = 45
-
-        # 保存模板
-        template_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static', 'templates')
-        if not os.path.exists(template_dir):
-            os.makedirs(template_dir)
+        # 设置数据验证
+        score_validation = DataValidation(
+            type="decimal",
+            operator="between",
+            formula1="0",
+            formula2="150",
+            allow_blank=True
+        )
+        score_validation.error = "分数必须在0-150之间"
+        score_validation.errorTitle = "分数错误"
         
-        template_path = os.path.join(template_dir, 'student_score_template.xlsx')
-        if os.path.exists(template_path):
-            os.remove(template_path)
-        
-        wb.save(template_path)
-        wb.close()
-        return template_path
-        
+        # 为成绩列添加数据验证
+        for col in ['D', 'E', 'F', 'G', 'H', 'I']:
+            score_validation.add(f"{col}2:{col}{len(students_without_scores)+1}")
+        ws.add_data_validation(score_validation)
+
+        # 保护工作表，但允许编辑未锁定的单元格
+        ws.protection.sheet = True
+        ws.protection.password = 'template'  # 设置保护密码
+
+        return wb
     except Exception as e:
-        raise Exception(f"创建成绩导入模板失败: {str(e)}")
+        print(f"Error creating template: {str(e)}")
+        raise

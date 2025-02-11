@@ -32,8 +32,7 @@ def create_app():
     scheduler.start()
     
     # 注册蓝图
-    from .routes import auth_bp, student_bp, teacher_bp, admin_bp, user_bp, stats_bp, dormitory_bp
-    from .routes.student import student_bp
+    from .routes import auth_bp, student_bp, teacher_bp, admin_bp, user_bp, stats_bp, dormitory_bp, todo_bp 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(student_bp, url_prefix='/api/student')
     app.register_blueprint(teacher_bp, url_prefix='/api/teacher')
@@ -41,5 +40,5 @@ def create_app():
     app.register_blueprint(user_bp, url_prefix='/api/user')
     app.register_blueprint(stats_bp, url_prefix='/api/stats')
     app.register_blueprint(dormitory_bp, url_prefix='/api/dormitory')
-    
+    app.register_blueprint(todo_bp, url_prefix='/api/todo')
     return app 

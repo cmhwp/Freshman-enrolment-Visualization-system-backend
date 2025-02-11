@@ -24,7 +24,6 @@ wheels/
 venv/
 ENV/
 env/
-.env
 
 # IDE
 .idea/
@@ -33,13 +32,37 @@ env/
 *.swo
 .DS_Store
 
-# Logs
-*.log
-
-# Local development configuration
+# Flask
 instance/
 .webassets-cache
 
+# Environment variables
+.env
+.env.*
+!.env.example
+
 # Database
 *.db
-*.sqlite3 
+*.sqlite3
+
+# Logs
+logs/
+*.log
+
+# Test coverage
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# Misc
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local 

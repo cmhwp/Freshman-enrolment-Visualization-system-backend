@@ -236,7 +236,7 @@ def get_unassigned_students():
             ).all()
         
         print(f"Unassigned students found: {len(students)}")  # 打印未分配宿舍的学生数量
-        
+        db.session.commit()
         student_list = [{
             'id': student.id,
             'name': user.name,
@@ -337,7 +337,14 @@ def update_building(building_id):
             building.gender = data['gender']
         if 'description' in data:
             building.description = data['description']
-            
+        # 记录日志
+        log = SystemLog(
+            user_id=g.user_id,
+            type='update_building',
+            content=f'更新宿舍楼: {building.name}',
+            ip_address=request.remote_addr
+        )
+        db.session.add(log)
         db.session.commit()
         
         return jsonify({
@@ -375,6 +382,14 @@ def delete_building(building_id):
         # 删除所有房间
         DormitoryRoom.query.filter_by(building_id=building_id).delete()
         db.session.delete(building)
+        # 记录日志
+        log = SystemLog(
+            user_id=g.user_id,
+            type='delete_building',
+            content=f'删除宿舍楼: {building.name}',
+            ip_address=request.remote_addr
+        )
+        db.session.add(log)
         db.session.commit()
         
         return jsonify({
@@ -424,7 +439,14 @@ def update_room(room_id):
             
         if 'description' in data:
             room.description = data['description']
-            
+        # 记录日志
+        log = SystemLog(
+            user_id=g.user_id,
+            type='update_room',
+            content=f'更新宿舍房间: {room.building.name}-{room.room_number}',
+            ip_address=request.remote_addr
+        )
+        db.session.add(log)
         db.session.commit()
         
         return jsonify({
@@ -457,6 +479,14 @@ def delete_room(room_id):
             }), 400
             
         db.session.delete(room)
+        # 记录日志
+        log = SystemLog(
+            user_id=g.user_id,
+            type='delete_room',
+            content=f'删除宿舍房间: {room.building.name}-{room.room_number}',
+            ip_address=request.remote_addr
+        )
+        db.session.add(log)
         db.session.commit()
         
         return jsonify({
