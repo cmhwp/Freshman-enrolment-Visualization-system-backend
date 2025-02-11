@@ -748,7 +748,14 @@ def analyze_class_scores(class_id):
                 report_data=report_content
             )
             db.session.add(new_report)
-        
+        #记录日志
+        log = SystemLog(
+            user_id=g.user_id,
+            type='generate_analysis_report',
+            content=f'生成班级成绩分析报告：{class_id}',
+            ip_address=request.remote_addr
+        )
+        db.session.add(log)
         db.session.commit()
 
         return jsonify({
@@ -893,7 +900,14 @@ def update_student_report_status(student_id):
             student.report_time = datetime.now()
         else:
             student.report_time = None
-
+        #记录日志
+        log = SystemLog(
+            user_id=user.id,
+            type='update_student_report_status',
+            content=f'{user.name}更新学生报到状态：{student.user.name}',
+            ip_address=request.remote_addr
+        )   
+        db.session.add(log)
         db.session.commit()
 
         return jsonify({

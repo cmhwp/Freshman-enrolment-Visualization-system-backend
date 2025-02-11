@@ -6,7 +6,7 @@ from datetime import datetime
 from app.models import Student, ClassInfo, Teacher
 from app.models.user import User
 from flask_jwt_extended import get_jwt_identity
-
+from app.models.system_log import SystemLog
 todo_bp = Blueprint('todo', __name__)
 
 @todo_bp.route('/todos', methods=['GET'])
@@ -124,6 +124,14 @@ def create_todo():
         )
         
         db.session.add(todo)
+        #记录日志
+        log = SystemLog(
+            user_id=user.id,
+            type='create_todo',
+            content=f'{user.name}创建待办事项：{todo.title}',
+            ip_address=request.remote_addr
+        )
+        db.session.add(log)
         db.session.commit()
         
         return jsonify({
@@ -174,9 +182,15 @@ def update_todo(todo_id):
             if todo.status == 'pending':  # 只能在待处理状态下修改
                 todo.title = data.get('title', todo.title)
                 todo.content = data.get('content', todo.content)
-            
+        #记录日志   
+        log = SystemLog(
+            user_id=user.id,
+            type='update_todo',
+            content=f'{user.name}更新待办事项：{todo.title}',
+            ip_address=request.remote_addr
+        )
+        db.session.add(log)
         db.session.commit()
-        
         return jsonify({
             'success': True,
             'data': todo.to_dict()
@@ -216,7 +230,13 @@ def delete_todo(todo_id):
         
         db.session.delete(todo)
         db.session.commit()
-        
+        #记录日志
+        log = SystemLog(
+            user_id=user.id,
+            type='delete_todo',
+            content=f'{user.name}删除待办事项：{todo.title}',
+            ip_address=request.remote_addr
+        )
         return jsonify({
             'success': True,
             'message': '删除成功'
