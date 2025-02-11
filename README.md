@@ -62,7 +62,7 @@ flask run
 
 - 管理员：admin/admin123
 - 教师：teacher1/123456
-- 学生：自行注册
+- 学生：自行注册/管理员导入
 
 ## API 文档
 
