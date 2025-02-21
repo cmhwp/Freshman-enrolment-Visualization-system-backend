@@ -777,12 +777,13 @@ def get_analysis_history(class_id):
     """获取班级历史分析报告"""
     try:
         report = AnalysisReport.query.filter_by(class_id=class_id).first()
+        print(report.to_dict())
         if not report:
             return jsonify({
                 'success': False,
                 'message': '未找到分析报告'
             }), 404
-            
+        
         return jsonify({
             'success': True,
             'data': report.to_dict()

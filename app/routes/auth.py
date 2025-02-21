@@ -287,4 +287,10 @@ def generate_student_id():
     else:
         current_num = 1
         
-    return f'{year}{current_num:04d}' 
+        return f'{year}{current_num:04d}' 
+
+@auth_bp.route('/register-status', methods=['GET'])
+def get_register_status():
+    """获取是否允许注册"""
+    settings = get_settings()
+    return jsonify({"success": True, "message": "允许注册", "data": {"allowRegister": settings.allow_register}}), 200
